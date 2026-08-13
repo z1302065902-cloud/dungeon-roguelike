@@ -259,9 +259,10 @@ export default function initDungeon() {
       scene.add(b);
       game.bullets.push(b);
     } else {
-      // 近战：前方扇形检测
+      // 近战：挥砍特效 + 前方检测
       const dir = new THREE.Vector3();
       camera.getWorldDirection(dir);
+      swingEffect();
       for (const e of game.enemies) {
         const toE = new THREE.Vector3(e.x - player.position.x, 0, e.z - player.position.z);
         if (toE.length() < w.range) {
@@ -281,6 +282,49 @@ export default function initDungeon() {
     game.kills++;
     game.gold += 5 + game.room;
     if (game.enemies.length === 0 && game.room >= 1) showUpgrade();
+  }
+
+  // 几何体武器（剑：柄+刃+护手，按武器颜色）
+  function buildWeapon(color) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.6, roughness: 0.3 });
+    // 刃
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.12), mat);
+    blade.position.y = 0.45;
+    g.add(blade);
+    // 尖端
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.25, 6), mat);
+    tip.position.y = 0.95;
+    g.add(tip);
+    // 护手
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.08, 0.1), new THREE.MeshStandardMaterial({ color: 0x8a6a3f, metalness: 0.7 }));
+    guard.position.y = 0.05;
+    g.add(guard);
+    // 柄
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.25, 6), new THREE.MeshStandardMaterial({ color: 0x5a3a20 }));
+    handle.position.y = -0.15;
+    g.add(handle);
+    g.userData.isWeapon = true;
+    return g;
+  }
+
+  // 挥砍特效（前方弧形闪光）
+  let swingFx = null;
+  function swingEffect() {
+    if (swingFx) { scene.remove(swingFx); swingFx = null; }
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    dir.y = 0; dir.normalize();
+    const cx = player.position.x + dir.x * 1.2;
+    const cz = player.position.z + dir.z * 1.2;
+    swingFx = new THREE.Mesh(
+      new THREE.CircleGeometry(0.8, 16, 0, Math.PI * 0.8),
+      new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
+    );
+    swingFx.position.set(cx, 0.8, cz);
+    swingFx.lookAt(player.position.x, 0.8, player.position.z);
+    scene.add(swingFx);
+    setTimeout(() => { if (swingFx) { scene.remove(swingFx); swingFx = null; } }, 600 / SPEED);
   }
 
   // 升级三选一
@@ -456,9 +500,11 @@ export default function initDungeon() {
     // 玩家模型
     playerModel = place('player', 0, 0.4, 0, 0.8, 0);
     if (playerModel) { player.add(playerModel); playerModel.position.y = 0; }
-    // 武器（玩家头顶旋转展示，明显可见）
-    const wm = place('sword_common.gltf.glb', 0, 0, 0, 1.2, 0);
-    if (wm) { player.add(wm); wm.position.set(0, 2.2, 0); wm.rotation.z = 0.4; weaponModel = wm; }
+    // 武器（几何体剑，保证可见，不依赖 GLB）
+    weaponModel = buildWeapon(WEAPONS[game.weaponIdx].color);
+    player.add(weaponModel);
+    weaponModel.position.set(0.9, 0.9, 0.4);
+    weaponModel.rotation.z = -0.5;
     buildRoom();
     loading.done();
     donateButtons('dungeon-roguelike');
