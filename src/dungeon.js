@@ -186,7 +186,9 @@ export default function initDungeon() {
     floor.receiveShadow = true;
     floor.userData.roomObj = true;
     scene.add(floor);
-    // 墙（四周）
+    // 墙（几何体，秒开）
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x6a5a7a, roughness: 0.8 });
+    const wallGeo = new THREE.BoxGeometry(1.8, 1.8, 0.3);
     for (let i = -4; i <= 4; i += 2) {
       for (const z of [-5, 5]) {
         const w = new THREE.Mesh(wallGeo, wallMat);
