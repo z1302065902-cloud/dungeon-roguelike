@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { BgmPlayer } from './bgm.js';
+import { donateButtons } from './ui-kit.js';
 
 const params = new URLSearchParams(location.search);
 const TEST = params.get('test') === '1';
@@ -441,7 +442,8 @@ export default function initDungeon() {
     if (wm) { player.add(wm); wm.position.set(0.6, 0.6, 0); weaponModel = wm; }
     buildRoom();
     loading.done();
-    addDonateButtons();
+    donateButtons('dungeon-roguelike');
+    donateButtons('dungeon-roguelike');
     flash('深境地牢 · WASD移动 · 点击/空格攻击');
     requestAnimationFrame(animate);
   }
