@@ -419,8 +419,16 @@ export default function initDungeon() {
   window.addEventListener('keyup', e => { keys[e.code] = false; });
   renderer.domElement.addEventListener('pointerdown', e => {
     ensureAudio();
+    // 点击地面移动（射线检测地面）
+    pointer.x = (e.clientX / renderer.domElement.clientWidth) * 2 - 1;
+    pointer.y = -(e.clientY / renderer.domElement.clientHeight) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const hit = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(plane, hit)) {
+      game.moveTarget = { x: Math.max(-4.5, Math.min(4.5, hit.x)), z: Math.max(-4.5, Math.min(4.5, hit.z)) };
+    }
     game.touchMove = { x: e.clientX, y: e.clientY };
-    attack();
   });
   renderer.domElement.addEventListener('pointermove', e => {
     if (game.touchMove) {
@@ -444,7 +452,7 @@ export default function initDungeon() {
     if (!game.over) {
       // 武器旋转展示
       if (weaponModel) weaponModel.rotation.y += dt * 2;
-      // 玩家移动（WASD）
+      // 玩家移动：先点击目标，再 WASD（键盘）
       let mx = 0, mz = 0;
       if (keys['KeyW'] || keys['ArrowUp']) mz -= 1;
       if (keys['KeyS'] || keys['ArrowDown']) mz += 1;
@@ -454,12 +462,26 @@ export default function initDungeon() {
         const len = Math.hypot(mx, mz);
         player.position.x += mx / len * 3.2 * (game.spdMul || 1) * dt;
         player.position.z += mz / len * 3.2 * (game.spdMul || 1) * dt;
-        player.position.x = Math.max(-4.5, Math.min(4.5, player.position.x));
-        player.position.z = Math.max(-4.5, Math.min(4.5, player.position.z));
+      } else if (game.moveTarget) {
+        // 自动走向点击目标
+        const dx = game.moveTarget.x - player.position.x;
+        const dz = game.moveTarget.z - player.position.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist > 0.3) {
+          player.position.x += dx / dist * 3.2 * (game.spdMul || 1) * dt;
+          player.position.z += dz / dist * 3.2 * (game.spdMul || 1) * dt;
+        } else { game.moveTarget = null; }
       }
+      player.position.x = Math.max(-4.5, Math.min(4.5, player.position.x));
+      player.position.z = Math.max(-4.5, Math.min(4.5, player.position.z));
       if (keys['Space']) attack();
-      // 自动攻击（简化：有敌人在范围就攻击）
-      if (TEST && game.enemies.length) attack();
+      // 自动攻击（范围内自动攻击，不需要按键）
+      if (game.enemies.length) {
+        const w = WEAPONS[game.weaponIdx];
+        for (const e of game.enemies) {
+          if (Math.hypot(e.x - player.position.x, e.z - player.position.z) < w.range) { attack(); break; }
+        }
+      }
 
       // 敌人 AI（追踪玩家）
       for (const e of [...game.enemies]) {
