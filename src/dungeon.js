@@ -39,7 +39,45 @@ const UPGRADES = [
   { id: 'crit', name: '致命一击', desc: '暴击率 +15%', apply: g => { g.crit = (g.crit || 0) + 0.15; } },
 ];
 
+// 加载进度条 + 收款入口 UI
+function showLoadingUI() {
+  const wrap = document.createElement('div');
+  wrap.id = 'loading-ui';
+  wrap.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999';
+  wrap.innerHTML = '<div style="color:#ddd;font:bold 18px Arial;margin-bottom:12px">⚔️ 深境地牢 加载中...</div><div style="width:260px;height:10px;background:#333;border-radius:5px;overflow:hidden"><div id="loading-bar" style="width:0%;height:100%;background:#e8794f;border-radius:5px;transition:width .3s"></div></div><div id="loading-pct" style="color:#aaa;font:12px Arial;margin-top:8px">0%</div>';
+  document.body.appendChild(wrap);
+  return {
+    set(pct) {
+      const bar = document.getElementById('loading-bar');
+      const pctEl = document.getElementById('loading-pct');
+      if (bar) bar.style.width = pct + '%';
+      if (pctEl) pctEl.textContent = Math.round(pct) + '%';
+    },
+    done() {
+      const el = document.getElementById('loading-ui');
+      if (el) { el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }
+    }
+  };
+}
+// 收款入口（itch $1 + 爱发电）
+function addDonateButtons() {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;bottom:10px;right:10px;display:flex;gap:8px;z-index:98';
+  const btn = (text, url, bg) => {
+    const a = document.createElement('a');
+    a.textContent = text;
+    a.href = url;
+    a.target = '_blank';
+    a.style.cssText = `background:${bg};color:#fff;font:bold 12px Arial;padding:8px 14px;border-radius:10px;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,.3)`;
+    return a;
+  };
+  wrap.appendChild(btn('💝 完整版 $1', 'https://zsy2026.itch.io/dungeon-roguelike', '#e8794f'));
+  wrap.appendChild(btn('⚡ 爱发电赞助', 'https://afdian.com/a/zsy2026', '#6eb5ff'));
+  document.body.appendChild(wrap);
+}
+
 export default function initDungeon() {
+  const loading = showLoadingUI();
   const canvas = document.querySelector('canvas') || document.createElement('canvas');
   document.body.appendChild(canvas);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -75,8 +113,9 @@ export default function initDungeon() {
       return m;
     }).catch(() => null);
   }
+  let loadedCount = 0, totalToLoad = 0;
   async function ensure(name, path) {
-    if (!(name in models)) models[name] = await loadModel(path);
+    if (!(name in models)) { totalToLoad++; models[name] = await loadModel(path); loadedCount++; loading.set(loadedCount / Math.max(1, totalToLoad) * 100); }
     return models[name];
   }
   function place(name, x, y, z, scale, rotY) {
@@ -393,6 +432,8 @@ export default function initDungeon() {
     const wm = place('sword_common.gltf.glb', 0, 0, 0, 0.6, 0);
     if (wm) { player.add(wm); wm.position.set(0.6, 0.6, 0); weaponModel = wm; }
     buildRoom();
+    loading.done();
+    addDonateButtons();
     flash('深境地牢 · WASD移动 · 点击/空格攻击');
     requestAnimationFrame(animate);
   }
