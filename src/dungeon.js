@@ -15,19 +15,19 @@ const SPEED = TEST ? (parseFloat(params.get('speed')) || 4) : 1;
 
 // 武器（KayKit 模型）
 const WEAPONS = [
-  { name: '长剑', model: 'sword_common.gltf.glb', dmg: 10, range: 2.2, rate: 600, color: 0xc0c0c0 },
-  { name: '巨斧', model: 'axe_common.gltf.glb', dmg: 18, range: 2.0, rate: 900, color: 0xb8a060 },
-  { name: '战锤', model: 'hammer_common.gltf.glb', dmg: 25, range: 1.8, rate: 1200, color: 0x8a8a8a },
-  { name: '法杖', model: 'staff_common.gltf.glb', dmg: 14, range: 4.0, rate: 700, color: 0x6eb5ff },
-  { name: '弩箭', model: 'crossbow_common.gltf.glb', dmg: 12, range: 5.0, rate: 500, color: 0x9a6b3f },
+  { name: '长剑', model: 'sword_common.gltf.glb', dmg: 18, range: 2.5, rate: 500, color: 0xc0c0c0 },
+  { name: '巨斧', model: 'axe_common.gltf.glb', dmg: 26, range: 2.2, rate: 800, color: 0xb8a060 },
+  { name: '战锤', model: 'hammer_common.gltf.glb', dmg: 35, range: 2.0, rate: 1100, color: 0x8a8a8a },
+  { name: '法杖', model: 'staff_common.gltf.glb', dmg: 20, range: 4.0, rate: 600, color: 0x6eb5ff },
+  { name: '弩箭', model: 'crossbow_common.gltf.glb', dmg: 16, range: 5.0, rate: 450, color: 0x9a6b3f },
 ];
 
 // 敌人配置
 const ENEMIES = [
-  { name: '小骷髅', hp: 20, speed: 1.4, dmg: 8, color: 0xcccccc, scale: 0.7 },
-  { name: '绿史莱姆', hp: 35, speed: 0.9, dmg: 12, color: 0x6bc46b, scale: 0.8 },
-  { name: '红魔', hp: 55, speed: 1.8, dmg: 16, color: 0xe05a5a, scale: 0.9 },
-  { name: '宝箱怪', hp: 90, speed: 1.0, dmg: 25, color: 0xb8903a, scale: 1.1 },
+  { name: '小骷髅', hp: 20, speed: 1.2, dmg: 4, color: 0xcccccc, scale: 0.7 },
+  { name: '绿史莱姆', hp: 35, speed: 0.8, dmg: 6, color: 0x6bc46b, scale: 0.8 },
+  { name: '红魔', hp: 55, speed: 1.6, dmg: 8, color: 0xe05a5a, scale: 0.9 },
+  { name: '宝箱怪', hp: 90, speed: 0.9, dmg: 12, color: 0xb8903a, scale: 1.1 },
 ];
 
 // 升级池（三选一）
@@ -142,8 +142,8 @@ export default function initDungeon() {
     over: false, touchMove: null,
   };
 
-  // 测试接口
-  if (TEST) {
+  // 测试接口（总是暴露，方便调试/验证）
+  {
     window.__game_state = {
       get hp() { return Math.max(0, game.hp); },
       get score() { return game.kills; },
@@ -238,7 +238,7 @@ export default function initDungeon() {
     chest.userData.roomObj = true;
     scene.add(chest);
     // 刷怪
-    const count = 3 + game.room;
+    const count = Math.min(6, 1 + Math.floor(game.room / 2) + Math.floor(game.room / 4));
     for (let i = 0; i < count; i++) spawnEnemy();
   }
 
@@ -469,8 +469,14 @@ export default function initDungeon() {
           e.x += dx / dist * e.type.speed * dt;
           e.z += dz / dist * e.type.speed * dt;
         } else {
-          // 接触伤害
-          game.hp -= e.type.dmg * dt;
+          // 接触伤害（低频率，避免秒死）
+          if (!e.attackCd) e.attackCd = 0;
+          e.attackCd -= dt;
+          if (e.attackCd <= 0) {
+            e.attackCd = 1.0;
+            game.hp -= e.type.dmg;
+            if (game.hp <= 0 && !game.over) gameOver();
+          }
           if (game.hp <= 0 && !game.over) gameOver();
         }
         e.mesh.position.x = e.x;
