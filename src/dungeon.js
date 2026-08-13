@@ -159,6 +159,20 @@ export default function initDungeon() {
   scene.add(player);
   let playerModel = null;
   let weaponModel = null;
+  // 几何体人形兜底（manneko 失败时用）
+  function buildHuman() {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: 0xe8794f, roughness: 0.6 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x4a3a6a, roughness: 0.6 });
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 10), mat); head.position.y = 1.5; g.add(head);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.7, 8), dark); body.position.y = 1.0; g.add(body);
+    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.6, 6), mat); armL.position.set(-0.3, 1.1, 0); armL.rotation.z = 0.3; g.add(armL);
+    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.6, 6), mat); armR.position.set(0.3, 1.1, 0); armR.rotation.z = -0.3; g.add(armR);
+    const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.5, 6), dark); legL.position.set(-0.13, 0.3, 0); g.add(legL);
+    const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.5, 6), dark); legR.position.set(0.13, 0.3, 0); g.add(legR);
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    return g;
+  }
 
   // 地牢构建（墙 + 地板 + 火把）
   async function buildRoom() {
@@ -175,12 +189,19 @@ export default function initDungeon() {
     // 墙（四周）
     for (let i = -4; i <= 4; i += 2) {
       for (const z of [-5, 5]) {
-        const w = place('wall', i, 0.8, z, 1, 0);
-        if (w) w.userData.roomObj = true;
+        const w = new THREE.Mesh(wallGeo, wallMat);
+        w.position.set(i, 0.9, z);
+        w.castShadow = true; w.receiveShadow = true;
+        w.userData.roomObj = true;
+        scene.add(w);
       }
       for (const x of [-5, 5]) {
-        const w = place('wall', x, 0.8, i, 1, Math.PI / 2);
-        if (w) w.userData.roomObj = true;
+        const w = new THREE.Mesh(wallGeo, wallMat);
+        w.position.set(x, 0.9, i);
+        w.rotation.y = Math.PI / 2;
+        w.castShadow = true; w.receiveShadow = true;
+        w.userData.roomObj = true;
+        scene.add(w);
       }
     }
     // 彩色水晶柱（提升色彩丰富度）
@@ -195,13 +216,25 @@ export default function initDungeon() {
       scene.add(c);
     }
     // 火把（照明）
-    place('torchWall', -4, 1.2, -4.5, 0.8, 0);
-    place('torchWall', 4, 1.2, -4.5, 0.8, 0);
-    place('torchWall', -4, 1.2, 4.5, 0.8, Math.PI);
-    place('torchWall', 4, 1.2, 4.5, 0.8, Math.PI);
-    // 装饰：箱子
-    const chest = place('chest_common', Math.random() * 4 - 2, 0.3, Math.random() * 4 - 2, 0.8, Math.random() * 3);
-    if (chest) chest.userData.roomObj = true;
+    // 火把（几何体发光）
+    for (const [fx, fz] of [[-4, -4.5], [4, -4.5], [-4, 4.5], [4, 4.5]]) {
+      const torch = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 1.2, 6),
+        new THREE.MeshStandardMaterial({ color: 0x5a3a20 }));
+      torch.position.set(fx, 0.6, fz);
+      torch.userData.roomObj = true;
+      scene.add(torch);
+      const flame = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 6),
+        new THREE.MeshBasicMaterial({ color: 0xffa060 }));
+      flame.position.set(fx, 1.4, fz);
+      flame.userData.roomObj = true;
+      scene.add(flame);
+    }
+    // 装饰：箱子（几何体）
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.6),
+      new THREE.MeshStandardMaterial({ color: 0x8a6a3f, roughness: 0.7 }));
+    chest.position.set(Math.random() * 4 - 2, 0.25, Math.random() * 4 - 2);
+    chest.userData.roomObj = true;
+    scene.add(chest);
     // 刷怪
     const count = 3 + game.room;
     for (let i = 0; i < count; i++) spawnEnemy();
@@ -499,6 +532,7 @@ export default function initDungeon() {
     loading.set(100);
     // 玩家模型
     playerModel = place('player', 0, 0.4, 0, 0.8, 0);
+    if (!playerModel) playerModel = buildHuman();
     if (playerModel) { player.add(playerModel); playerModel.position.y = 0; }
     // 武器（几何体剑，保证可见，不依赖 GLB）
     weaponModel = buildWeapon(WEAPONS[game.weaponIdx].color);
