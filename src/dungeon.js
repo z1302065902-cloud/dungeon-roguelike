@@ -424,11 +424,15 @@ export default function initDungeon() {
   async function start() {
     const base = (import.meta.env && import.meta.env.BASE_URL) || './';
     const A = `${base}assets/3d/`;
-    await ensure('wall', `${A}environment/wall.gltf.glb`);
-    await ensure('torchWall', `${A}environment/torchWall.gltf.glb`);
-    await ensure('chest_common', `${A}environment/chest_common.gltf.glb`);
-    await ensure('player', `${A}characters/manneko_low_poly_girl.glb`);
-    for (const w of WEAPONS) await ensure(w.name, `${A}weapons/${w.model}`);
+    // 并行加载（Promise.all，总耗时 = 最慢单个 ≤8s）
+    await Promise.all([
+      ensure('wall', `${A}environment/wall.gltf.glb`),
+      ensure('torchWall', `${A}environment/torchWall.gltf.glb`),
+      ensure('chest_common', `${A}environment/chest_common.gltf.glb`),
+      ensure('player', `${A}characters/manneko_low_poly_girl.glb`),
+      ...WEAPONS.map(w => ensure(w.name, `${A}weapons/${w.model}`)),
+    ]);
+    loading.set(100);
     // 玩家模型
     playerModel = place('player', 0, 0.4, 0, 0.8, 0);
     if (playerModel) { player.add(playerModel); playerModel.position.y = 0; }
