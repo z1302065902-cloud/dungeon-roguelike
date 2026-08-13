@@ -115,7 +115,7 @@ export default function initDungeon() {
         m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
         return m;
       }),
-      new Promise(res => setTimeout(() => res(null), 8000)),
+      new Promise(res => setTimeout(() => res(null), 25000)),
     ]).catch(() => null);
   }
   let loadedCount = 0, totalToLoad = 0;
@@ -212,16 +212,28 @@ export default function initDungeon() {
     const t = types[Math.floor(Math.random() * types.length)];
     const x = Math.random() * 6 - 3, z = Math.random() * 6 - 3;
     if (Math.hypot(x, z) < 2.5) return;  // 不刷在玩家旁
-    const m = place('player', x, 0.4, z, t.scale, Math.random() * 3);
-    if (!m) return;
-    // 染色区分敌人
-    m.traverse(o => {
-      if (o.isMesh && o.material) {
-        o.material = o.material.clone ? o.material.clone() : o.material;
-        if (o.material.color) o.material.color.set(t.color);
-      }
-    });
-    game.enemies.push({ mesh: m, type: t, hp: t.hp, x, z, hitFlash: 0 });
+    // 卡通发光敌人（球体+眼睛，保证可见）
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5 * t.scale, 12, 12),
+      new THREE.MeshStandardMaterial({ color: t.color, emissive: t.color, emissiveIntensity: 0.35, roughness: 0.6 })
+    );
+    body.position.y = 0.6;
+    g.add(body);
+    // 眼睛
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const pupilMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+    for (const side of [-1, 1]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
+      eye.position.set(side * 0.18, 0.75, 0.4);
+      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 6), pupilMat);
+      pupil.position.set(side * 0.18, 0.75, 0.5);
+      g.add(eye); g.add(pupil);
+    }
+    g.position.set(x, 0, z);
+    g.castShadow = true;
+    scene.add(g);
+    game.enemies.push({ mesh: g, type: t, hp: t.hp, x, z, hitFlash: 0 });
   }
 
   // 武器攻击
@@ -437,9 +449,9 @@ export default function initDungeon() {
     // 玩家模型
     playerModel = place('player', 0, 0.4, 0, 0.8, 0);
     if (playerModel) { player.add(playerModel); playerModel.position.y = 0; }
-    // 武器
-    const wm = place('sword_common.gltf.glb', 0, 0, 0, 0.6, 0);
-    if (wm) { player.add(wm); wm.position.set(0.6, 0.6, 0); weaponModel = wm; }
+    // 武器（放大更明显，挂在玩家前方）
+    const wm = place('sword_common.gltf.glb', 0, 0, 0, 1.0, -0.5);
+    if (wm) { player.add(wm); wm.position.set(0.8, 0.8, 0.3); weaponModel = wm; }
     buildRoom();
     loading.done();
     donateButtons('dungeon-roguelike');
