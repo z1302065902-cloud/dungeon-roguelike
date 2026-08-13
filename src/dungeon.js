@@ -107,11 +107,15 @@ export default function initDungeon() {
   scene.add(torchLight);
 
   function loadModel(path) {
-    return loader.loadAsync(path).then(g => {
-      const m = g.scene;
-      m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-      return m;
-    }).catch(() => null);
+    // 加超时（8s）：资源挂起时返回 null，保证加载不卡死
+    return Promise.race([
+      loader.loadAsync(path).then(g => {
+        const m = g.scene;
+        m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        return m;
+      }),
+      new Promise(res => setTimeout(() => res(null), 8000)),
+    ]).catch(() => null);
   }
   let loadedCount = 0, totalToLoad = 0;
   async function ensure(name, path) {
