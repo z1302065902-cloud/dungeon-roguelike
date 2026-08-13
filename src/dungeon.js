@@ -358,6 +358,8 @@ export default function initDungeon() {
     game.lastTime = time;
 
     if (!game.over) {
+      // 武器旋转展示
+      if (weaponModel) weaponModel.rotation.y += dt * 2;
       // 玩家移动（WASD）
       let mx = 0, mz = 0;
       if (keys['KeyW'] || keys['ArrowUp']) mz -= 1;
@@ -449,9 +451,9 @@ export default function initDungeon() {
     // 玩家模型
     playerModel = place('player', 0, 0.4, 0, 0.8, 0);
     if (playerModel) { player.add(playerModel); playerModel.position.y = 0; }
-    // 武器（放大更明显，挂在玩家前方）
-    const wm = place('sword_common.gltf.glb', 0, 0, 0, 1.0, -0.5);
-    if (wm) { player.add(wm); wm.position.set(0.8, 0.8, 0.3); weaponModel = wm; }
+    // 武器（玩家头顶旋转展示，明显可见）
+    const wm = place('sword_common.gltf.glb', 0, 0, 0, 1.2, 0);
+    if (wm) { player.add(wm); wm.position.set(0, 2.2, 0); wm.rotation.z = 0.4; weaponModel = wm; }
     buildRoom();
     loading.done();
     donateButtons('dungeon-roguelike');
