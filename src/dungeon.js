@@ -210,8 +210,13 @@ export default function initDungeon() {
   function spawnEnemy() {
     const types = ENEMIES.slice(0, Math.min(ENEMIES.length, 1 + Math.floor(game.room / 2)));
     const t = types[Math.floor(Math.random() * types.length)];
-    const x = Math.random() * 6 - 3, z = Math.random() * 6 - 3;
-    if (Math.hypot(x, z) < 2.5) return;  // 不刷在玩家旁
+    // 位置：环形分布（保证不在玩家旁），最多重试 5 次
+    let x = 0, z = 0;
+    for (let tryN = 0; tryN < 5; tryN++) {
+      x = Math.random() * 6 - 3; z = Math.random() * 6 - 3;
+      if (Math.hypot(x, z) >= 2.5) break;
+      x = 3 + Math.random() * 2; z = 3 + Math.random() * 2;  // 兜底：放角落
+    }
     // 卡通发光敌人（球体+眼睛，保证可见）
     const g = new THREE.Group();
     const body = new THREE.Mesh(
